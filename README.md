@@ -1,6 +1,6 @@
-# 🗺️ Maps to Waze Bot
+# 🗺️ gmaps-to-waze-bot
 
-**The smart way to convert Google Maps links to Waze navigation!**
+**The smart way to convert Google Maps links to Waze navigation with multi-language support!**
 
 ## 🚀 How to Use
 
@@ -11,6 +11,8 @@ Simply send any Google Maps link to our bot and get an instant Waze navigation l
 - **Any Google Maps link** - from short URLs to full place links
 - **Coordinates** - send us coordinates and we'll convert them
 - **All formats** - decimal, DMS, or any Google Maps URL
+- **Multi-language support** - Russian, English, Ukrainian, Hebrew
+- **Interactive menu** - easy navigation with buttons
 
 ### 📱 Try It Now
 

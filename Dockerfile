@@ -5,9 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY maps_to_waze_bot.py .
+COPY *.py ./
 
 # Cloud Run will set PORT environment variable
-EXPOSE 8081
+EXPOSE 8080
 
 CMD ["python", "maps_to_waze_bot.py"]
