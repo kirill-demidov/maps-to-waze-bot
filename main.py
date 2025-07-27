@@ -1,4 +1,4 @@
-from bot_simple import main
+from bot_multilang import main
 
 if __name__ == '__main__':
     main()

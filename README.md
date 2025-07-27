@@ -1,105 +1,153 @@
 # Maps to Waze Telegram Bot
 
-A Telegram bot that converts Google Maps links and coordinates to Waze navigation links.
+🤖 Telegram бот для конвертации ссылок Google Maps в Waze навигацию.
 
-## Features
+## ✨ Возможности
 
-- ✅ Convert Google Maps links to Waze links
-- ✅ Support for shortened Google Maps URLs (maps.app.goo.gl)
-- ✅ Parse decimal coordinates (40.7128, -74.0060)
-- ✅ Parse DMS coordinates (31°44'49.8"N 35°01'46.6"E)
-- ✅ Automatic URL expansion for short links
-- ✅ Detailed logging
-- ✅ Cloud deployment ready
+- ✅ Конвертация любых ссылок Google Maps в Waze
+- ✅ Поддержка коротких ссылок (maps.app.goo.gl)
+- ✅ Обработка координат в десятичном формате (40.7128, -74.0060)
+- ✅ Обработка координат в формате DMS (31°44'49.8"N 35°01'46.6"E)
+- ✅ Google Maps API для извлечения координат из ссылок на места
+- ✅ Автоматическое расширение коротких ссылок
+- ✅ Подробное логирование
+- ✅ Готов к развертыванию в облаке
 
-## Supported Input Formats
+## 📋 Поддерживаемые форматы
 
-### Google Maps URLs
+### Ссылки Google Maps
 - `https://maps.google.com/...`
 - `https://www.google.com/maps/...`
 - `https://goo.gl/maps/...`
 - `https://maps.app.goo.gl/...`
+- Любые ссылки на места и достопримечательности
 
-### Coordinates
-- **Decimal**: `40.7128, -74.0060`
+### Координаты
+- **Десятичные**: `40.7128, -74.0060`
 - **DMS**: `31°44'49.8"N 35°01'46.6"E`
 
-## Local Development
+## 🔑 Получение API ключей
 
-### Prerequisites
+### Telegram Bot Token
+
+1. **Найдите @BotFather в Telegram**
+2. **Отправьте команду:** `/newbot`
+3. **Следуйте инструкциям:**
+   - Введите имя бота
+   - Введите username бота (должен заканчиваться на `bot`)
+4. **Скопируйте полученный токен**
+
+### Google Maps API Key
+
+1. **Перейдите в [Google Cloud Console](https://console.cloud.google.com/)**
+2. **Выберите или создайте проект**
+3. **Включите Places API:**
+   - Перейдите в "APIs & Services" → "Library"
+   - Найдите "Places API"
+   - Нажмите "Enable"
+4. **Создайте API ключ:**
+   - Перейдите в "APIs & Services" → "Credentials"
+   - Нажмите "Create Credentials" → "API Key"
+   - Скопируйте созданный ключ
+5. **Ограничьте ключ (рекомендуется):**
+   - Нажмите на созданный ключ
+   - В разделе "Application restrictions" выберите "HTTP referrers"
+   - Добавьте домены: `*.run.app`
+   - В разделе "API restrictions" выберите "Restrict key"
+   - Выберите "Places API"
+
+## 🚀 Локальная разработка
+
+### Требования
 - Python 3.9+
-- Telegram bot token from [@BotFather](https://t.me/botfather)
+- Telegram bot token
+- Google Maps API key (опционально)
 
-### Installation
-1. Clone the repository:
+### Установка
+1. **Клонируйте репозиторий:**
 ```bash
 git clone <repository-url>
 cd maps-to-waze-bot
 ```
 
-2. Install dependencies:
+2. **Установите зависимости:**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set environment variables:
+3. **Установите переменные окружения:**
 ```bash
-export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+export TELEGRAM_BOT_TOKEN="ваш_токен_бота"
+export GOOGLE_MAPS_API_KEY="ваш_ключ_google_maps_api"
 ```
 
-4. Run the bot:
+4. **Запустите бота:**
 ```bash
-python main.py
+python maps_to_waze_bot.py
 ```
 
-## Cloud Deployment (Google Cloud Run)
+## ☁️ Развертывание в облаке (Google Cloud Run)
 
-### Build and Deploy
+### Быстрое развертывание
 ```bash
-# Build Docker image
-docker build --platform linux/amd64 -t gcr.io/YOUR_PROJECT/maps-to-waze-bot .
-
-# Push to Google Container Registry
-docker push gcr.io/YOUR_PROJECT/maps-to-waze-bot
-
-# Deploy to Cloud Run
+# Развернуть с токенами
 gcloud run deploy maps-to-waze-bot \
-  --image gcr.io/YOUR_PROJECT/maps-to-waze-bot \
-  --platform managed \
-  --region us-central1 \
-  --set-env-vars TELEGRAM_BOT_TOKEN="your_bot_token_here" \
-  --allow-unauthenticated
+  --source . \
+  --port 8081 \
+  --allow-unauthenticated \
+  --region europe-central2 \
+  --set-env-vars TELEGRAM_BOT_TOKEN="ваш_токен_бота",GOOGLE_MAPS_API_KEY="ваш_ключ_google_maps_api"
 ```
 
-## Bot Commands
+### Безопасное развертывание с Secret Manager
+```bash
+# Создать секреты
+echo -n "ваш_токен_бота" | gcloud secrets create telegram-bot-token --data-file=-
+echo -n "ваш_ключ_google_maps_api" | gcloud secrets create google-maps-api-key --data-file=-
 
-- `/start` - Show welcome message and usage instructions
-- `/help` - Display help information
+# Развернуть с секретами
+gcloud run deploy maps-to-waze-bot \
+  --source . \
+  --port 8081 \
+  --allow-unauthenticated \
+  --region europe-central2 \
+  --set-secrets TELEGRAM_BOT_TOKEN=telegram-bot-token:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest
+```
 
-## Architecture
+## 🤖 Команды бота
 
-- **bot_simple.py** - Main bot logic with coordinate parsing
-- **main.py** - Entry point
-- **Dockerfile** - Container configuration
-- **requirements.txt** - Python dependencies
+- `/start` - Показать приветственное сообщение и инструкции
+- `/help` - Показать справку
 
-## Logging
+## 🏗️ Архитектура
 
-The bot provides detailed logging including:
-- User interactions
-- URL expansion processes
-- Coordinate extraction
-- Conversion results
-- Error handling
+- **maps_to_waze_bot.py** - Основная логика бота с обработкой координат
+- **Dockerfile** - Конфигурация контейнера
+- **requirements.txt** - Python зависимости
 
-## Contributing
+## 📊 Логирование
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+Бот предоставляет подробное логирование:
+- Взаимодействия с пользователями
+- Процессы расширения URL
+- Извлечение координат
+- Результаты конвертации
+- Обработка ошибок
 
-## License
+## 🔒 Безопасность
 
-MIT License - see LICENSE file for details.
+- Токены хранятся в переменных окружения
+- Рекомендуется использовать Google Secret Manager для продакшн
+- API ключи ограничены по доменам и API
+
+## 🤝 Вклад в проект
+
+1. Форкните репозиторий
+2. Создайте ветку для функции
+3. Внесите изменения
+4. Тщательно протестируйте
+5. Отправьте pull request
+
+## 📄 Лицензия
+
+MIT License - см. файл LICENSE для деталей.
