@@ -8,6 +8,9 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# Global application variable for webhook
+application = None
+
 # Google Maps API
 try:
     import googlemaps
@@ -445,7 +448,7 @@ def main():
     http_thread = threading.Thread(target=run_http_server, daemon=True)
     http_thread.start()
     
-    # Create the Application
+    # Create the Application with better error handling
     application = Application.builder().token(token).build()
     
     # Add handlers
@@ -453,9 +456,25 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Run the bot
-    print("🤖 Bot started!")
-    application.run_polling()
+    # Add error handler
+    application.add_error_handler(error_handler)
+    
+    # Run the bot with polling and better configuration
+    print("🤖 Bot started with polling!")
+    application.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+        close_loop=False
+    )
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle errors in the bot"""
+    print(f"❌ Error: {context.error}")
+    if update and hasattr(update, 'message'):
+        await update.message.reply_text(
+            "❌ Произошла ошибка при обработке вашего сообщения.\n"
+            "Пожалуйста, попробуйте еще раз или отправьте /help для справки."
+        )
 
 if __name__ == '__main__':
     main()
