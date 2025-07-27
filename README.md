@@ -58,11 +58,12 @@ Simply send any Google Maps link to our bot and get an instant Waze navigation l
 - **Custom integrations** - for travel companies and apps
 - **White-label solutions** - for other businesses
 
-## 🤝 Support
+## 🤝 Support & Community
 
 - **Questions?** Contact us through the bot
 - **Feedback?** We'd love to hear from you!
 - **Suggestions?** Help us improve the service
+- **Contributors?** See our [Contributors Guide](CONTRIBUTORS.md)
 
 ## 📄 Terms of Service
 

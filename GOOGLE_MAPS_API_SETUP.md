@@ -1,48 +1,48 @@
-# 🔑 Настройка Google Maps API
+# 🔑 Google Maps API Setup
 
-## Получение API ключа
+## Getting API Key
 
-1. **Перейдите в Google Cloud Console:**
+1. **Go to Google Cloud Console:**
    https://console.cloud.google.com/
 
-2. **Выберите проект:** playground-332710
+2. **Select project:** playground-332710
 
-3. **Включите Google Maps API:**
-   - Перейдите в "APIs & Services" > "Library"
-   - Найдите "Places API"
-   - Нажмите "Enable"
+3. **Enable Google Maps API:**
+   - Go to "APIs & Services" > "Library"
+   - Find "Places API"
+   - Click "Enable"
 
-4. **Создайте API ключ:**
-   - Перейдите в "APIs & Services" > "Credentials"
-   - Нажмите "Create Credentials" > "API Key"
-   - Скопируйте созданный ключ
+4. **Create API key:**
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "API Key"
+   - Copy the created key
 
-5. **Ограничьте ключ (рекомендуется):**
-   - Нажмите на созданный ключ
-   - В разделе "Application restrictions" выберите "HTTP referrers"
-   - Добавьте домены: `*.run.app`
-   - В разделе "API restrictions" выберите "Restrict key"
-   - Выберите "Places API"
+5. **Restrict the key (recommended):**
+   - Click on the created key
+   - In "Application restrictions" select "HTTP referrers"
+   - Add domains: `*.run.app`
+   - In "API restrictions" select "Restrict key"
+   - Select "Places API"
 
-## Установка ключа в Cloud Run
+## Setting up the key in Cloud Run
 
 ```bash
 gcloud run services update maps-to-waze-bot \
-  --set-env-vars GOOGLE_MAPS_API_KEY=ваш_ключ_здесь \
+  --set-env-vars GOOGLE_MAPS_API_KEY=your_key_here \
   --region europe-central2
 ```
 
-## Проверка работы
+## Testing
 
-После установки ключа бот сможет обрабатывать любые ссылки Google Maps, включая:
-- Ссылки на места без координат
-- Короткие ссылки maps.app.goo.gl
-- Ссылки на бизнесы и достопримечательности
+After setting up the key, the bot will be able to process any Google Maps links, including:
+- Place links without coordinates
+- Short links maps.app.goo.gl
+- Business and landmark links
 
-## Стоимость
+## Cost
 
-Google Maps API имеет бесплатный лимит:
-- 1000 запросов в день для Places API
-- Дополнительные запросы: $0.017 за 1000 запросов
+Google Maps API has a free tier:
+- 1000 requests per day for Places API
+- Additional requests: $0.017 per 1000 requests
 
-Для большинства ботов этого достаточно. 
+This is sufficient for most bots. 
