@@ -56,3 +56,7 @@ secrets.json
 
 # Docker
 .dockerignore
+# Analytics files
+bot_analytics.json
+analytics_report.html
+anonymized_analytics.json
