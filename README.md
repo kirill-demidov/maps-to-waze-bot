@@ -1,153 +1,74 @@
-# Maps to Waze Telegram Bot
+# 🗺️ Maps to Waze Bot
 
-🤖 Telegram бот для конвертации ссылок Google Maps в Waze навигацию.
+**The smart way to convert Google Maps links to Waze navigation!**
 
-## ✨ Возможности
+## 🚀 How to Use
 
-- ✅ Конвертация любых ссылок Google Maps в Waze
-- ✅ Поддержка коротких ссылок (maps.app.goo.gl)
-- ✅ Обработка координат в десятичном формате (40.7128, -74.0060)
-- ✅ Обработка координат в формате DMS (31°44'49.8"N 35°01'46.6"E)
-- ✅ Google Maps API для извлечения координат из ссылок на места
-- ✅ Автоматическое расширение коротких ссылок
-- ✅ Подробное логирование
-- ✅ Готов к развертыванию в облаке
+Simply send any Google Maps link to our bot and get an instant Waze navigation link!
 
-## 📋 Поддерживаемые форматы
+### ✅ What We Support
 
-### Ссылки Google Maps
-- `https://maps.google.com/...`
-- `https://www.google.com/maps/...`
-- `https://goo.gl/maps/...`
-- `https://maps.app.goo.gl/...`
-- Любые ссылки на места и достопримечательности
+- **Any Google Maps link** - from short URLs to full place links
+- **Coordinates** - send us coordinates and we'll convert them
+- **All formats** - decimal, DMS, or any Google Maps URL
 
-### Координаты
-- **Десятичные**: `40.7128, -74.0060`
-- **DMS**: `31°44'49.8"N 35°01'46.6"E`
+### 📱 Try It Now
 
-## 🔑 Получение API ключей
+1. **Find our bot in Telegram** (link will be added)
+2. **Send any Google Maps link** like:
+   - `https://maps.app.goo.gl/...`
+   - `https://maps.google.com/...`
+   - Or just coordinates: `40.7128, -74.0060`
+3. **Get your Waze link instantly!**
 
-### Telegram Bot Token
+## 💡 Why Use Our Bot?
 
-1. **Найдите @BotFather в Telegram**
-2. **Отправьте команду:** `/newbot`
-3. **Следуйте инструкциям:**
-   - Введите имя бота
-   - Введите username бота (должен заканчиваться на `bot`)
-4. **Скопируйте полученный токен**
+- **⚡ Instant conversion** - no waiting, no complicated steps
+- **🌍 Works worldwide** - any location, any country
+- **📱 Mobile-friendly** - perfect for on-the-go navigation
+- **🆓 Free to use** - convert unlimited links
+- **🔒 Privacy-focused** - we don't store your data
 
-### Google Maps API Key
+## 🎯 Perfect For
 
-1. **Перейдите в [Google Cloud Console](https://console.cloud.google.com/)**
-2. **Выберите или создайте проект**
-3. **Включите Places API:**
-   - Перейдите в "APIs & Services" → "Library"
-   - Найдите "Places API"
-   - Нажмите "Enable"
-4. **Создайте API ключ:**
-   - Перейдите в "APIs & Services" → "Credentials"
-   - Нажмите "Create Credentials" → "API Key"
-   - Скопируйте созданный ключ
-5. **Ограничьте ключ (рекомендуется):**
-   - Нажмите на созданный ключ
-   - В разделе "Application restrictions" выберите "HTTP referrers"
-   - Добавьте домены: `*.run.app`
-   - В разделе "API restrictions" выберите "Restrict key"
-   - Выберите "Places API"
+- **Travelers** - quickly convert hotel/restaurant links
+- **Drivers** - get Waze navigation from any Google Maps link
+- **Business users** - convert meeting location links
+- **Anyone** - who prefers Waze over Google Maps navigation
 
-## 🚀 Локальная разработка
+## 📊 Usage Examples
 
-### Требования
-- Python 3.9+
-- Telegram bot token
-- Google Maps API key (опционально)
+| Input | Output |
+|-------|--------|
+| Google Maps link | Waze navigation link |
+| Coordinates | Waze navigation link |
+| Place name | Waze navigation link |
 
-### Установка
-1. **Клонируйте репозиторий:**
-```bash
-git clone <repository-url>
-cd maps-to-waze-bot
-```
+## 🔮 Coming Soon
 
-2. **Установите зависимости:**
-```bash
-pip install -r requirements.txt
-```
+- **Premium features** - advanced routing options
+- **Batch conversion** - convert multiple links at once
+- **Custom routes** - save your favorite routes
+- **API access** - for developers and businesses
 
-3. **Установите переменные окружения:**
-```bash
-export TELEGRAM_BOT_TOKEN="ваш_токен_бота"
-export GOOGLE_MAPS_API_KEY="ваш_ключ_google_maps_api"
-```
+## 💰 Monetization Plans
 
-4. **Запустите бота:**
-```bash
-python maps_to_waze_bot.py
-```
+- **Freemium model** - basic features free, premium features paid
+- **API access** - for businesses and developers
+- **Custom integrations** - for travel companies and apps
+- **White-label solutions** - for other businesses
 
-## ☁️ Развертывание в облаке (Google Cloud Run)
+## 🤝 Support
 
-### Быстрое развертывание
-```bash
-# Развернуть с токенами
-gcloud run deploy maps-to-waze-bot \
-  --source . \
-  --port 8081 \
-  --allow-unauthenticated \
-  --region europe-central2 \
-  --set-env-vars TELEGRAM_BOT_TOKEN="ваш_токен_бота",GOOGLE_MAPS_API_KEY="ваш_ключ_google_maps_api"
-```
+- **Questions?** Contact us through the bot
+- **Feedback?** We'd love to hear from you!
+- **Suggestions?** Help us improve the service
 
-### Безопасное развертывание с Secret Manager
-```bash
-# Создать секреты
-echo -n "ваш_токен_бота" | gcloud secrets create telegram-bot-token --data-file=-
-echo -n "ваш_ключ_google_maps_api" | gcloud secrets create google-maps-api-key --data-file=-
+## 📄 Terms of Service
 
-# Развернуть с секретами
-gcloud run deploy maps-to-waze-bot \
-  --source . \
-  --port 8081 \
-  --allow-unauthenticated \
-  --region europe-central2 \
-  --set-secrets TELEGRAM_BOT_TOKEN=telegram-bot-token:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest
-```
+By using our bot, you agree to our terms of service. We respect your privacy and don't store personal data.
 
-## 🤖 Команды бота
 
-- `/start` - Показать приветственное сообщение и инструкции
-- `/help` - Показать справку
+## 📄 License
 
-## 🏗️ Архитектура
-
-- **maps_to_waze_bot.py** - Основная логика бота с обработкой координат
-- **Dockerfile** - Конфигурация контейнера
-- **requirements.txt** - Python зависимости
-
-## 📊 Логирование
-
-Бот предоставляет подробное логирование:
-- Взаимодействия с пользователями
-- Процессы расширения URL
-- Извлечение координат
-- Результаты конвертации
-- Обработка ошибок
-
-## 🔒 Безопасность
-
-- Токены хранятся в переменных окружения
-- Рекомендуется использовать Google Secret Manager для продакшн
-- API ключи ограничены по доменам и API
-
-## 🤝 Вклад в проект
-
-1. Форкните репозиторий
-2. Создайте ветку для функции
-3. Внесите изменения
-4. Тщательно протестируйте
-5. Отправьте pull request
-
-## 📄 Лицензия
-
-MIT License - см. файл LICENSE для деталей.
+MIT License - see LICENSE file for details.
