@@ -97,18 +97,14 @@ class BotAnalytics:
             if today not in self.data["daily_stats"]:
                 self.data["daily_stats"][today] = {
                     "total_interactions": 0,
-                    "unique_users": set(),
+                    "unique_users": [],
                     "successful_links": 0,
                     "failed_links": 0
                 }
             
             self.data["daily_stats"][today]["total_interactions"] += 1
-            self.data["daily_stats"][today]["unique_users"].add(user_id_str)
-            
-            # Convert set to list for JSON serialization
-            self.data["daily_stats"][today]["unique_users"] = list(
-                self.data["daily_stats"][today]["unique_users"]
-            )
+            if user_id_str not in self.data["daily_stats"][today]["unique_users"]:
+                self.data["daily_stats"][today]["unique_users"].append(user_id_str)
             
             # Store additional data if provided
             if additional_data:
