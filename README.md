@@ -1,185 +1,105 @@
-# Google Maps to Waze Bot
+# Maps to Waze Telegram Bot
 
-A powerful Telegram bot that converts Google Maps links and coordinates to Waze navigation links. Perfect for seamless navigation between different mapping services.
+A Telegram bot that converts Google Maps links and coordinates to Waze navigation links.
 
-## 🌟 Features
+## Features
 
-- **Smart Link Processing**: Handles various Google Maps URL formats including short links
-- **Coordinate Support**: Direct coordinate input (decimal and DMS formats)
-- **Multi-language Support**: Russian, English, Ukrainian, and Hebrew
-- **Interactive Menu**: Easy-to-use inline keyboard interface
-- **Real-time Analytics**: Built-in usage tracking and statistics
-- **Admin Panel**: Web-based analytics dashboard for administrators
-- **Cloud Deployment**: Ready for Google Cloud Run deployment
+- ✅ Convert Google Maps links to Waze links
+- ✅ Support for shortened Google Maps URLs (maps.app.goo.gl)
+- ✅ Parse decimal coordinates (40.7128, -74.0060)
+- ✅ Parse DMS coordinates (31°44'49.8"N 35°01'46.6"E)
+- ✅ Automatic URL expansion for short links
+- ✅ Detailed logging
+- ✅ Cloud deployment ready
 
-## 🚀 Quick Start
+## Supported Input Formats
 
-### For Users
+### Google Maps URLs
+- `https://maps.google.com/...`
+- `https://www.google.com/maps/...`
+- `https://goo.gl/maps/...`
+- `https://maps.app.goo.gl/...`
 
-1. **Find the bot** on Telegram: `@gmaps_to_waze_bot`
-2. **Send a Google Maps link** or coordinates
-3. **Get instant Waze navigation link**
+### Coordinates
+- **Decimal**: `40.7128, -74.0060`
+- **DMS**: `31°44'49.8"N 35°01'46.6"E`
 
-### Supported Input Formats
-
-#### Google Maps Links
-- Short URLs: `https://maps.app.goo.gl/Rr1YmBwYZn1c1rUc6`
-- Standard URLs: `https://www.google.com/maps?q=40.7128,-74.0060`
-- Place URLs: `https://www.google.com/maps/place/Times+Square/@40.7580,-73.9855,17z`
-
-#### Direct Coordinates
-- Decimal: `40.7128, -74.0060`
-- DMS: `40°42'46.8"N 74°00'21.6"W`
-
-## 🛠️ For Developers
+## Local Development
 
 ### Prerequisites
-
 - Python 3.9+
-- Google Cloud Platform account
-- Telegram Bot Token
-- Google Maps API Key (optional)
+- Telegram bot token from [@BotFather](https://t.me/botfather)
 
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/kirill-demidov/gmaps-to-waze-bot.git
-   cd gmaps-to-waze-bot
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set environment variables**
-   ```bash
-   export TELEGRAM_BOT_TOKEN="your_bot_token"
-   export GOOGLE_MAPS_API_KEY="your_api_key"
-   export ADMIN_USER_IDS="your_telegram_user_id"
-   ```
-
-4. **Run locally**
-   ```bash
-   python maps_to_waze_bot.py
-   ```
-
-### Cloud Deployment
-
-1. **Deploy to Google Cloud Run**
-   ```bash
-   gcloud run deploy gmaps-waze-bot \
-     --source . \
-     --region us-central1 \
-     --allow-unauthenticated \
-     --max-instances=1 \
-     --set-env-vars="TELEGRAM_BOT_TOKEN=your_token,GOOGLE_MAPS_API_KEY=your_key,ADMIN_USER_IDS=your_id"
-   ```
-
-2. **Set up environment variables** in Google Cloud Console
-
-### Testing
-
-Run the comprehensive crash test:
+### Installation
+1. Clone the repository:
 ```bash
-python3 crash_test.py
+git clone <repository-url>
+cd maps-to-waze-bot
 ```
 
-## 📊 Analytics
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-The bot includes built-in analytics features:
+3. Set environment variables:
+```bash
+export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+```
 
-- **User activity tracking**
-- **Link processing statistics**
-- **Language usage metrics**
-- **Web-based admin panel**
+4. Run the bot:
+```bash
+python main.py
+```
 
-Access analytics at: `https://your-service-url/admin?user_id=YOUR_TELEGRAM_ID`
+## Cloud Deployment (Google Cloud Run)
 
-## 🌐 Multi-language Support
+### Build and Deploy
+```bash
+# Build Docker image
+docker build --platform linux/amd64 -t gcr.io/YOUR_PROJECT/maps-to-waze-bot .
 
-The bot supports multiple languages with automatic language detection:
+# Push to Google Container Registry
+docker push gcr.io/YOUR_PROJECT/maps-to-waze-bot
 
-- 🇷🇺 Russian
-- 🇺🇸 English
-- 🇺🇦 Ukrainian
-- 🇮🇱 Hebrew
+# Deploy to Cloud Run
+gcloud run deploy maps-to-waze-bot \
+  --image gcr.io/YOUR_PROJECT/maps-to-waze-bot \
+  --platform managed \
+  --region us-central1 \
+  --set-env-vars TELEGRAM_BOT_TOKEN="your_bot_token_here" \
+  --allow-unauthenticated
+```
 
-Use `/language` command to change your preferred language.
+## Bot Commands
 
-## 🔧 Configuration
+- `/start` - Show welcome message and usage instructions
+- `/help` - Display help information
 
-### Environment Variables
+## Architecture
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | Yes |
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key | No |
-| `ADMIN_USER_IDS` | Comma-separated Telegram user IDs | No |
-| `PORT` | HTTP server port (default: 8080) | No |
+- **bot_simple.py** - Main bot logic with coordinate parsing
+- **main.py** - Entry point
+- **Dockerfile** - Container configuration
+- **requirements.txt** - Python dependencies
 
-### Bot Commands
+## Logging
 
-- `/start` - Welcome message and menu
-- `/help` - Show help information
-- `/menu` - Display main menu
-- `/language` - Change language settings
-- `/myid` - Show your Telegram user ID
-- `/admin` - Access admin panel (admin only)
+The bot provides detailed logging including:
+- User interactions
+- URL expansion processes
+- Coordinate extraction
+- Conversion results
+- Error handling
 
-## 🏗️ Architecture
-
-### Core Components
-
-- **Message Handler**: Processes incoming messages and extracts coordinates
-- **URL Expander**: Handles Google Maps short URL expansion
-- **Coordinate Parser**: Supports multiple coordinate formats
-- **Waze Link Generator**: Creates navigation links
-- **Analytics Engine**: Tracks usage and provides statistics
-- **Admin Panel**: Web-based dashboard for monitoring
-
-### Key Features
-
-- **Robust Error Handling**: Graceful handling of invalid inputs
-- **Rate Limiting**: Prevents API abuse
-- **Logging**: Comprehensive logging for debugging
-- **Health Checks**: Built-in health monitoring
-- **Security**: Admin access control and input validation
-
-## 📈 Performance
-
-- **Fast Response**: Average response time < 2 seconds
-- **High Reliability**: 99.9% uptime on Google Cloud Run
-- **Scalable**: Auto-scaling based on demand
-- **Efficient**: Minimal resource usage
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
+4. Test thoroughly
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Telegram Bot API for messaging platform
-- Google Maps API for location services
-- Google Cloud Run for hosting infrastructure
-- Python community for excellent libraries
-
-## 📞 Support
-
-For support or questions:
-- Create an issue on GitHub
-- Contact the bot administrator
-- Check the `/help` command in the bot
-
----
-
-**Made with ❤️ for seamless navigation**
+MIT License - see LICENSE file for details.

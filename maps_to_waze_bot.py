@@ -35,6 +35,9 @@ except ImportError:
 # Admin panel settings
 ADMIN_USER_IDS = os.getenv('ADMIN_USER_IDS', '').split(',')  # Comma-separated list of admin Telegram user IDs
 
+# Track processed messages to prevent duplicates
+processed_messages = set()
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -78,51 +81,44 @@ def parse_dms_coordinates(text):
 def expand_short_url(url):
     """Expand short Google Maps URL to get the full URL with coordinates"""
     try:
+        # Define headers for HTTP requests
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none'
+        }
+        
         # Check if it's a short Google Maps URL
         if 'maps.app.goo.gl' in url or 'goo.gl' in url:
-            # Add headers to mimic a real browser
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none'
-            }
+            # For maps.app.goo.gl, try to expand first, then fallback
+            if 'maps.app.goo.gl' in url:
+                # Try to expand the URL first
+                try:
+                    response = requests.get(url, allow_redirects=True, timeout=1, headers=headers)
+                    if response.url != url:
+                        logger.info(f"Successfully expanded maps.app.goo.gl: {response.url}")
+                        return response.url
+                except Exception as e:
+                    logger.warning(f"Failed to expand maps.app.goo.gl: {e}")
+                
+                # Fallback to place ID method
+                place_id = url.split('/')[-1].split('?')[0]
+                return f"https://www.google.com/maps/place/{place_id}"
             
-            # Try multiple methods to expand the URL
+            # For other short URLs, try GET request with shorter timeout
             try:
-                # Method 1: HEAD request with redirects
-                response = requests.head(url, allow_redirects=True, timeout=5, headers=headers)
+                response = requests.get(url, allow_redirects=True, timeout=1, headers=headers)
                 if response.url != url:
-                    logger.info(f"Successfully expanded URL via HEAD: {response.url}")
-                    return response.url
-            except Exception as e:
-                logger.warning(f"HEAD request failed: {e}")
-            
-            try:
-                # Method 2: GET request with redirects
-                response = requests.get(url, allow_redirects=True, timeout=5, headers=headers)
-                if response.url != url:
-                    logger.info(f"Successfully expanded URL via GET: {response.url}")
+                    logger.info(f"Successfully expanded URL: {response.url}")
                     return response.url
             except Exception as e:
                 logger.warning(f"GET request failed: {e}")
-            
-            # If both methods fail, try to construct a fallback URL
-            if 'maps.app.goo.gl' in url:
-                place_id = url.split('/')[-1].split('?')[0]
-                logger.info(f"Using fallback URL for place ID: {place_id}")
-                # Try different URL formats
-                fallback_urls = [
-                    f"https://www.google.com/maps/place/{place_id}",
-                    f"https://maps.google.com/maps?q=place_id:{place_id}",
-                    f"https://www.google.com/maps/search/{place_id}"
-                ]
-                return fallback_urls[0]  # Return first fallback
             
         return url
     except Exception as e:
@@ -145,7 +141,7 @@ def extract_coordinates_from_google_maps_api(url):
             return None, None
         
         # Initialize Google Maps client with shorter timeout
-        gmaps = googlemaps.Client(key=api_key, timeout=5)
+        gmaps = googlemaps.Client(key=api_key, timeout=2)
         
         # First try to extract place ID from URL
         place_id = extract_place_id_from_url(url)
@@ -297,7 +293,7 @@ def extract_place_id_from_url(url):
 
 def extract_coordinates_from_input(text):
     """Extract coordinates from text (Google Maps URL or coordinates)"""
-    logger.info(f"Extracting coordinates from input: {text}")
+    # logger.info(f"Extracting coordinates from input: {text}")  # Removed for speed
     
     # First try direct coordinate parsing (fastest)
     coord_pattern = r'(-?\d+\.?\d*),\s*(-?\d+\.?\d*)'
@@ -312,11 +308,11 @@ def extract_coordinates_from_input(text):
         except ValueError:
             pass
     
-    # For Google Maps short URLs, try to expand and process them first
+    # For Google Maps short URLs, try fast methods first, then API
     if 'maps.app.goo.gl' in text:
         logger.info("Processing short Google Maps URL")
-        # Try to expand and extract coordinates
         try:
+            # First try to expand the URL to get the full URL
             expanded_url = expand_short_url(text)
             logger.info(f"Expanded URL: {expanded_url}")
             
@@ -326,22 +322,53 @@ def extract_coordinates_from_input(text):
                 logger.info(f"Found coordinates from expanded URL: {coords}")
                 return coords
             
-            # If no coordinates found, try Google Maps API
+            # If no coordinates found in expanded URL, try place ID method
+            place_id = text.split('/')[-1].split('?')[0]
+            fallback_url = f"https://www.google.com/maps/place/{place_id}"
+            
+            # Try to extract coordinates from fallback URL
+            coords = extract_coordinates_from_google_maps(fallback_url)
+            if coords[0] is not None:
+                logger.info(f"Found coordinates from fallback URL: {coords}")
+                return coords
+            
+            # If no coordinates found, try Google Maps API (slower but more reliable)
             if GOOGLE_MAPS_API_AVAILABLE:
                 coords = extract_coordinates_from_google_maps_api(text)
                 if coords[0] is not None:
                     logger.info(f"Found coordinates via API: {coords}")
                     return coords
+                
+                # Try API with expanded URL
+                coords = extract_coordinates_from_google_maps_api(expanded_url)
+                if coords[0] is not None:
+                    logger.info(f"Found coordinates via API with expanded URL: {coords}")
+                    return coords
+            
+            # Final fallback: try to extract coordinates from the short URL itself
+            # Some short URLs contain coordinates in the path
+            coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', text)
+            if coords_match:
+                lat, lng = coords_match.groups()
+                # Validate coordinate ranges
+                lat, lng = float(lat), float(lng)
+                if -90 <= lat <= 90 and -180 <= lng <= 180:
+                    logger.info(f"Found coordinates in short URL: {lat}, {lng}")
+                    return lat, lng
             
             logger.warning("Could not extract coordinates from short URL")
         except Exception as e:
             logger.error(f"Error processing short URL: {e}")
     
     # Then try to extract from URL using standard methods (fast and reliable)
-    coords = extract_coordinates_from_google_maps(text)
-    if coords[0] is not None:
-        logger.info(f"Found coordinates via standard method: {coords}")
-        return coords
+    if any(keyword in text.lower() for keyword in ['maps.google.com', 'google.com/maps']):
+        coords = extract_coordinates_from_google_maps(text)
+        if coords[0] is not None:
+            logger.info(f"Found coordinates via standard method: {coords}")
+            return coords
+        
+        # If no coordinates found in URL, don't try API (too slow)
+        logger.warning("No coordinates found in Google Maps URL")
     
     # Try to extract DMS coordinates
     coords = parse_dms_coordinates(text)
@@ -354,11 +381,27 @@ def extract_coordinates_from_input(text):
 
 def extract_coordinates_from_google_maps(url):
     """Extract latitude and longitude from Google Maps URL"""
+    import urllib.parse
     try:
-        # Expand short URLs first
-        expanded_url = expand_short_url(url)
-        logger.info(f"Processing URL: {expanded_url}")
-        
+        expanded_url = url
+        # Если это consent.google.com, ищем только в параметре continue
+        if 'consent.google.com' in expanded_url:
+            continue_match = re.search(r'continue=([^&]+)', expanded_url)
+            if continue_match:
+                continue_data = urllib.parse.unquote(continue_match.group(1))
+                # Сначала ищем паттерн с плюсом
+                match = re.search(r'(-?\d+\.?\d*),\+(-?\d+\.?\d*)', continue_data)
+                if match:
+                    lat, lng = match.groups()
+                    logger.info(f"Found coordinates via consent continue +: {lat}, {lng}")
+                    return float(lat), float(lng)
+                # Потом обычный паттерн
+                match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', continue_data)
+                if match:
+                    lat, lng = match.groups()
+                    logger.info(f"Found coordinates via consent continue: {lat}, {lng}")
+                    return float(lat), float(lng)
+            return None, None
         # Pattern for @lat,lng format
         coords_pattern = r'@(-?\d+\.?\d*),(-?\d+\.?\d*)'
         match = re.search(coords_pattern, expanded_url)
@@ -444,7 +487,10 @@ def extract_coordinates_from_google_maps(url):
         
         # Try to extract coordinates from the entire expanded URL
         # This is a fallback for complex URLs
-        coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', expanded_url)
+        # URL decode first to handle encoded coordinates
+        import urllib.parse
+        decoded_url = urllib.parse.unquote(expanded_url)
+        coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', decoded_url)
         if coords_match:
             lat, lng = coords_match.groups()
             # Validate coordinate ranges
@@ -464,18 +510,81 @@ def extract_coordinates_from_google_maps(url):
                 logger.info(f"Found coordinates via search path pattern: {lat}, {lng}")
                 return lat, lng
         
-        # Try to extract coordinates from search path (new pattern)
-        search_coords_pattern = r'search/([^?]+)'
-        search_match = re.search(search_coords_pattern, expanded_url)
-        if search_match:
-            search_data = search_match.group(1)
-            coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', search_data)
+        # Try to extract from the continue parameter in consent URLs (check this first)
+        continue_match = re.search(r'continue=([^&]+)', expanded_url)
+        if continue_match:
+            continue_data = urllib.parse.unquote(continue_match.group(1))
+            logger.info(f"Continue data: {continue_data}")
+            
+            # Look for coordinates in continue data
+            # Try different patterns for coordinates
+            coord_patterns = [
+                r'(-?\d+\.?\d*),(-?\d+\.?\d*)',  # Standard format
+                r'(-?\d+\.?\d*),\+(-?\d+\.?\d*)',  # With plus sign
+                r'(-?\d+\.?\d*),%2B(-?\d+\.?\d*)',  # URL encoded plus
+            ]
+            
+            for pattern in coord_patterns:
+                coords_match = re.search(pattern, continue_data)
+                if coords_match:
+                    lat, lng = coords_match.groups()
+                    # Validate coordinate ranges
+                    lat, lng = float(lat), float(lng)
+                    if -90 <= lat <= 90 and -180 <= lng <= 180:
+                        logger.info(f"Found coordinates via continue parameter: {lat}, {lng}")
+                        return lat, lng
+            
+            # Also try the original encoded continue data
+            original_continue = continue_match.group(1)
+            for pattern in coord_patterns:
+                coords_match = re.search(pattern, original_continue)
+                if coords_match:
+                    lat, lng = coords_match.groups()
+                    # Validate coordinate ranges
+                    lat, lng = float(lat), float(lng)
+                    if -90 <= lat <= 90 and -180 <= lng <= 180:
+                        logger.info(f"Found coordinates via original continue parameter: {lat}, {lng}")
+                        return lat, lng
+        
+        # Try to extract coordinates from search path (new pattern) - but only if it's not a consent URL
+        if 'consent.google.com' not in expanded_url:
+            search_coords_pattern = r'search/([^?]+)'
+            search_match = re.search(search_coords_pattern, expanded_url)
+            if search_match:
+                search_data = search_match.group(1)
+                # URL decode the search data first
+                import urllib.parse
+                decoded_data = urllib.parse.unquote(search_data)
+                logger.info(f"Decoded search data: {decoded_data}")
+                
+                # Try to find coordinates in decoded data
+                coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', decoded_data)
+                if coords_match:
+                    lat, lng = coords_match.groups()
+                    # Validate coordinate ranges
+                    lat, lng = float(lat), float(lng)
+                    if -90 <= lat <= 90 and -180 <= lng <= 180:
+                        logger.info(f"Found coordinates via search path pattern: {lat}, {lng}")
+                        return lat, lng
+        else:
+            # For consent URLs, skip search path extraction and go directly to continue parameter
+            logger.info("Skipping search path extraction for consent URL")
+            # Don't return here, continue to the next checks
+            pass
+        
+        # Try to extract coordinates from place path (modern Google Maps format)
+        place_coords_pattern = r'place/([^/]+)'
+        place_match = re.search(place_coords_pattern, expanded_url)
+        if place_match:
+            place_data = place_match.group(1)
+            # Look for coordinates in the place data
+            coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', place_data)
             if coords_match:
                 lat, lng = coords_match.groups()
                 # Validate coordinate ranges
                 lat, lng = float(lat), float(lng)
                 if -90 <= lat <= 90 and -180 <= lng <= 180:
-                    logger.info(f"Found coordinates via search path pattern: {lat}, {lng}")
+                    logger.info(f"Found coordinates via place path: {lat}, {lng}")
                     return lat, lng
         
         # Try to extract from complex query parameters
@@ -593,6 +702,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /start is issued."""
     user_id = update.effective_user.id
     lang = get_user_language(user_id)
+    message_id = update.message.message_id
+    chat_id = update.effective_chat.id
+    
+    # Create unique message identifier
+    message_key = f"{chat_id}_{message_id}_start"
+    
+    # Check if message was already processed
+    if message_key in processed_messages:
+        print(f"⚠️ DUPLICATE START command detected: {message_key}")
+        return
+    
+    # Add to processed messages
+    processed_messages.add(message_key)
+    
+    print(f"🔍 START command received from user {user_id}")
     
     # Track analytics
     if ANALYTICS_AVAILABLE and analytics:
@@ -601,10 +725,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api_status = get_text('api_available', lang) if GOOGLE_MAPS_API_AVAILABLE else get_text('api_unavailable', lang)
     welcome_message = get_text('welcome', lang, api_status=api_status)
     
+    print(f"📤 Sending welcome message to user {user_id}")
     await update.message.reply_text(
         welcome_message,
         reply_markup=create_menu_keyboard(lang)
     )
+    print(f"✅ Welcome message sent to user {user_id}")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /help is issued."""
@@ -686,6 +812,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_language(user_id)
     message_text = update.message.text
     
+    # Add unique message ID to prevent duplicates
+    message_id = update.message.message_id
+    chat_id = update.effective_chat.id
+    
+    # Create unique message identifier
+    message_key = f"{chat_id}_{message_id}"
+    
+    # Check if message was already processed
+    if message_key in processed_messages:
+        print(f"⚠️ DUPLICATE message detected: {message_key}")
+        return
+    
+    # Add to processed messages
+    processed_messages.add(message_key)
+    
+    # Clean up old messages (keep only last 1000)
+    if len(processed_messages) > 1000:
+        processed_messages.clear()
+    
+    print(f"🔍 MESSAGE received from user {user_id} (msg_id: {message_id}): {message_text[:50]}...")
+    
     # Get user info for analytics
     user_info = {
         "username": update.effective_user.username,
@@ -700,6 +847,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Track analytics
     if ANALYTICS_AVAILABLE and analytics:
         analytics.track_user_interaction(user_id, "message_received", True, {"message_length": len(message_text)}, user_info)
+    
+    # Send initial "typing" indicator
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    
+    # Initialize processing message variable
+    processing_msg = None
+    
+    # Send processing message for longer operations
+    if any(keyword in message_text.lower() for keyword in ['maps.google.com', 'goo.gl', 'maps.app.goo.gl']):
+        processing_msg = await update.message.reply_text(get_text('processing', lang))
     
     # Extract coordinates from input (URL or direct coordinates)
     lat, lng = extract_coordinates_from_input(message_text)
@@ -717,9 +874,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check if it's a Google Maps URL that couldn't be processed
         if 'maps.google.com' in message_text or 'goo.gl' in message_text or 'maps.app.goo.gl' in message_text:
             error_message = get_text('error_google_maps', lang)
-            await update.message.reply_text(error_message)
         else:
             error_message = get_text('error_general', lang)
+        
+        # Edit processing message if it was sent, otherwise send new message
+        if processing_msg is not None:
+            try:
+                await processing_msg.edit_text(error_message)
+            except:
+                # Fallback to sending new message if edit fails
+                await update.message.reply_text(error_message)
+        else:
             await update.message.reply_text(error_message)
         return
     
@@ -731,7 +896,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     waze_url = generate_waze_link(lat, lng)
     
     response_message = get_text('coordinates_extracted', lang, lat=lat, lng=lng, waze_url=waze_url)
-    await update.message.reply_text(response_message)
+    
+    # Edit processing message if it was sent, otherwise send new message
+    if processing_msg is not None:
+        try:
+            await processing_msg.edit_text(response_message)
+        except:
+            # Fallback to sending new message if edit fails
+            await update.message.reply_text(response_message)
+    else:
+        await update.message.reply_text(response_message)
     
     # Track request completion
     if ANALYTICS_AVAILABLE and analytics:
@@ -1194,14 +1368,58 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         pass
 
 def run_http_server():
-    """Run HTTP server for health checks"""
+    """Run HTTP server for health checks and analytics"""
     port = int(os.getenv('PORT', 8080))
     server = HTTPServer(('', port), HealthCheckHandler)
     print(f"🌐 HTTP server started on port {port}")
+    
+    # Start a background thread to ping health check periodically
+    def ping_health_check():
+        import time
+        import requests
+        while True:
+            try:
+                requests.get(f'http://localhost:{port}/health', timeout=5)
+                print(f"💓 Internal health check ping at {time.strftime('%H:%M:%S')}")
+                time.sleep(15)  # Ping every 15 seconds for more aggressive keep-alive
+            except Exception as e:
+                print(f"⚠️ Internal health check failed: {e}")
+                time.sleep(15)
+    
+    # Start a background thread to ping external health check (disabled due to SSL issues)
+    def ping_external_health():
+        import time
+        while True:
+            try:
+                # Just log that we're alive, don't make external requests
+                print(f"💚 Bot is alive at {time.strftime('%H:%M:%S')}")
+                time.sleep(60)  # Log every minute
+            except Exception as e:
+                print(f"⚠️ Health check error: {e}")
+                time.sleep(60)
+    
+    import threading
+    ping_thread = threading.Thread(target=ping_health_check, daemon=True)
+    ping_thread.start()
+    
+    external_ping_thread = threading.Thread(target=ping_external_health, daemon=True)
+    external_ping_thread.start()
+    
     server.serve_forever()
 
 def main():
     """Start the bot"""
+    import signal
+    import sys
+    
+    # Handle graceful shutdown
+    def signal_handler(sig, frame):
+        print("\n🛑 Received shutdown signal. Stopping bot gracefully...")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     # Get bot token from environment variable
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     
@@ -1218,8 +1436,14 @@ def main():
     http_thread = threading.Thread(target=run_http_server, daemon=True)
     http_thread.start()
     
-    # Create the Application with better error handling
+    # Create the Application with better error handling and unique identifier
     application = Application.builder().token(token).build()
+    
+    # Set a unique identifier to avoid conflicts
+    try:
+        application.bot.set_my_name("Maps to Waze Bot v4")
+    except Exception as e:
+        logger.warning(f"Could not set bot name: {e}")
     
     # Add handlers
     application.add_handler(CommandHandler("start", start))
@@ -1234,17 +1458,25 @@ def main():
     # Add error handler
     application.add_error_handler(error_handler)
     
-    # Run the bot with polling and better configuration
+    # Run the bot with polling and better configuration to avoid conflicts
     print("🤖 Bot started with polling!")
+    
+    # Add a small delay to reduce conflicts between instances
+    import time
+    import random
+    time.sleep(random.uniform(0, 2))
+    
     application.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
         close_loop=False,
-        bootstrap_retries=5,
+        bootstrap_retries=3,
         read_timeout=30,
         write_timeout=30,
         connect_timeout=30,
-        pool_timeout=30
+        pool_timeout=30,
+        poll_interval=7.0,  # Increased interval to reduce conflicts
+        timeout=30
     )
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
