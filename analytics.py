@@ -49,7 +49,7 @@ class BotAnalytics:
             logger.error(f"Error saving analytics data: {e}")
     
     def track_user_interaction(self, user_id: int, action: str, success: bool = True, 
-                             additional_data: Optional[Dict] = None):
+                             additional_data: Optional[Dict] = None, user_info: Optional[Dict] = None):
         """Track user interaction"""
         try:
             user_id_str = str(user_id)
@@ -64,8 +64,13 @@ class BotAnalytics:
                     "successful_interactions": 0,
                     "failed_interactions": 0,
                     "actions": {},
-                    "language": "en"
+                    "language": "en",
+                    "user_info": {}
                 }
+            
+            # Update user info if provided
+            if user_info:
+                self.data["users"][user_id_str]["user_info"].update(user_info)
             
             # Update user stats
             user_data = self.data["users"][user_id_str]
@@ -173,6 +178,77 @@ class BotAnalytics:
         except Exception as e:
             logger.error(f"Error tracking language change: {e}")
     
+    def track_request(self, user_id: int, request_type: str, request_data: str, 
+                     response_time: float = None, success: bool = True, user_info: Optional[Dict] = None):
+        """Track individual requests with detailed information"""
+        try:
+            current_time = datetime.now().isoformat()
+            
+            # Initialize requests tracking if not exists
+            if "requests" not in self.data:
+                self.data["requests"] = {
+                    "total": 0,
+                    "by_type": {},
+                    "response_times": [],
+                    "recent_requests": []
+                }
+            
+            # Update request stats
+            self.data["requests"]["total"] += 1
+            
+            if request_type not in self.data["requests"]["by_type"]:
+                self.data["requests"]["by_type"][request_type] = {
+                    "count": 0,
+                    "successful": 0,
+                    "failed": 0,
+                    "avg_response_time": 0
+                }
+            
+            self.data["requests"]["by_type"][request_type]["count"] += 1
+            if success:
+                self.data["requests"]["by_type"][request_type]["successful"] += 1
+            else:
+                self.data["requests"]["by_type"][request_type]["failed"] += 1
+            
+            # Track response time
+            if response_time is not None:
+                self.data["requests"]["response_times"].append(response_time)
+                # Keep only last 1000 response times
+                if len(self.data["requests"]["response_times"]) > 1000:
+                    self.data["requests"]["response_times"] = self.data["requests"]["response_times"][-1000:]
+                
+                # Update average response time
+                avg_time = sum(self.data["requests"]["response_times"]) / len(self.data["requests"]["response_times"])
+                self.data["requests"]["by_type"][request_type]["avg_response_time"] = round(avg_time, 3)
+            
+            # Track recent requests (last 100)
+            recent_request = {
+                "timestamp": current_time,
+                "user_id": user_id,
+                "type": request_type,
+                "data": request_data[:100] + "..." if len(request_data) > 100 else request_data,
+                "response_time": response_time,
+                "success": success
+            }
+            
+            self.data["requests"]["recent_requests"].append(recent_request)
+            # Keep only last 100 requests
+            if len(self.data["requests"]["recent_requests"]) > 100:
+                self.data["requests"]["recent_requests"] = self.data["requests"]["recent_requests"][-100:]
+            
+            # Track user interaction with request info
+            action = f"request_{request_type}"
+            additional_data = {
+                "request_data": request_data,
+                "response_time": response_time,
+                "success": success
+            }
+            
+            self.track_user_interaction(user_id, action, success, additional_data, user_info)
+            
+        except Exception as e:
+            logger.error(f"Error tracking request: {e}")
+    
     def get_user_stats(self, user_id: int) -> Optional[Dict]:
         """Get statistics for a specific user"""
         try:
@@ -208,6 +284,18 @@ class BotAnalytics:
                         "stats": self.data["daily_stats"][date]
                     })
             
+            # Get request statistics
+            request_stats = {}
+            if "requests" in self.data:
+                request_stats = {
+                    "total_requests": self.data["requests"]["total"],
+                    "by_type": self.data["requests"]["by_type"],
+                    "avg_response_time": round(
+                        sum(self.data["requests"]["response_times"]) / len(self.data["requests"]["response_times"]), 3
+                    ) if self.data["requests"]["response_times"] else 0,
+                    "recent_requests": self.data["requests"]["recent_requests"][-20:]  # Last 20 requests
+                }
+            
             return {
                 "total_users": total_users,
                 "total_interactions": total_interactions,
@@ -220,6 +308,7 @@ class BotAnalytics:
                 )[:10]),
                 "language_distribution": self.data["languages"],
                 "recent_activity": recent_days,
+                "request_stats": request_stats,
                 "uptime": self._calculate_uptime()
             }
         except Exception as e:
