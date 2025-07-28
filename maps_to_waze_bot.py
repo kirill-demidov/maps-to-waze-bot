@@ -5,6 +5,7 @@ import threading
 import requests
 import json
 import urllib.parse
+import time
 from urllib.parse import parse_qs, urlparse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -685,9 +686,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_language(user_id)
     message_text = update.message.text
     
+    # Get user info for analytics
+    user_info = {
+        "username": update.effective_user.username,
+        "first_name": update.effective_user.first_name,
+        "last_name": update.effective_user.last_name,
+        "is_bot": update.effective_user.is_bot
+    }
+    
+    # Track request with timing
+    start_time = time.time()
+    
     # Track analytics
     if ANALYTICS_AVAILABLE and analytics:
-        analytics.track_user_interaction(user_id, "message_received", True, {"message_length": len(message_text)})
+        analytics.track_user_interaction(user_id, "message_received", True, {"message_length": len(message_text)}, user_info)
     
     # Extract coordinates from input (URL or direct coordinates)
     lat, lng = extract_coordinates_from_input(message_text)
@@ -696,6 +708,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Track failed processing
         if ANALYTICS_AVAILABLE and analytics:
             analytics.track_link_processing(user_id, message_text, False, error="No coordinates found")
+        
+        # Track failed request
+        if ANALYTICS_AVAILABLE and analytics:
+            response_time = time.time() - start_time
+            analytics.track_request(user_id, "coordinate_extraction", message_text, response_time, False, user_info)
         
         # Check if it's a Google Maps URL that couldn't be processed
         if 'maps.google.com' in message_text or 'goo.gl' in message_text or 'maps.app.goo.gl' in message_text:
@@ -715,6 +732,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     response_message = get_text('coordinates_extracted', lang, lat=lat, lng=lng, waze_url=waze_url)
     await update.message.reply_text(response_message)
+    
+    # Track request completion
+    if ANALYTICS_AVAILABLE and analytics:
+        response_time = time.time() - start_time
+        analytics.track_request(user_id, "coordinate_extraction", message_text, response_time, True, user_info)
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -999,8 +1021,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         <div class="stat-label">Total Interactions</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-number">${data.request_stats?.total_requests || 0}</div>
+                        <div class="stat-label">Total Requests</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-number">${data.success_rate || 0}%</div>
                         <div class="stat-label">Success Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.request_stats?.avg_response_time || 0}s</div>
+                        <div class="stat-label">Avg Response Time</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number">${data.uptime || 'Unknown'}</div>
@@ -1013,6 +1043,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     <p><strong>Total:</strong> ${data.link_processing?.total || 0}</p>
                     <p><strong>Successful:</strong> ${data.link_processing?.successful || 0}</p>
                     <p><strong>Failed:</strong> ${data.link_processing?.failed || 0}</p>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">Request Statistics</div>
+                    <p><strong>Total Requests:</strong> ${data.request_stats?.total_requests || 0}</p>
+                    <p><strong>Average Response Time:</strong> ${data.request_stats?.avg_response_time || 0}s</p>
+                    <h4>Requests by Type:</h4>
+                    <ul>
+                        ${Object.entries(data.request_stats?.by_type || {}).map(([type, stats]) => 
+                            `<li><strong>${type}:</strong> ${stats.count} (${stats.successful} successful, ${stats.failed} failed, avg: ${stats.avg_response_time}s)</li>`
+                        ).join('')}
+                    </ul>
                 </div>
                 
                 <div class="chart-container">
@@ -1073,6 +1115,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             container.innerHTML = `
                 <div class="chart-container">
                     <div class="chart-title">User Statistics</div>
+                    <p><strong>User ID:</strong> ${searchUserId}</p>
+                    <p><strong>Username:</strong> ${userData.user_info?.username || 'N/A'}</p>
+                    <p><strong>Name:</strong> ${userData.user_info?.first_name || ''} ${userData.user_info?.last_name || ''}</p>
                     <p><strong>First Seen:</strong> ${userData.first_seen}</p>
                     <p><strong>Last Seen:</strong> ${userData.last_seen}</p>
                     <p><strong>Total Interactions:</strong> ${userData.total_interactions}</p>
