@@ -1,0 +1,231 @@
+{
+  "summary": {
+    "total_tests": 22,
+    "passed_tests": 0,
+    "failed_tests": 21,
+    "error_tests": 1,
+    "success_rate": 0.0
+  },
+  "results": [
+    {
+      "test_name": "Short Google Maps URL",
+      "input": "https://maps.app.goo.gl/Rr1YmBwYZn1c1rUc6",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.1885850429534912,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Standard Google Maps URL with coordinates",
+      "input": "https://www.google.com/maps?q=40.7128,-74.0060",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.18160486221313477,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Google Maps URL with @ coordinates",
+      "input": "https://www.google.com/maps/@40.7128,-74.0060,15z",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.1849679946899414,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Google Maps place URL",
+      "input": "https://www.google.com/maps/place/Times+Square/@40.7580,-73.9855,17z",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.24515986442565918,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Simple coordinates",
+      "input": "40.7128, -74.0060",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.22083806991577148,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Coordinates without spaces",
+      "input": "40.7128,-74.0060",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.22565507888793945,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "DMS coordinates",
+      "input": "40°42'46.8\"N 74°00'21.6\"W",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.19128918647766113,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Empty string",
+      "input": "",
+      "expected": "error",
+      "actual_result": "error",
+      "passed": false,
+      "response_time": 0.1926558017730713,
+      "error": "HTTP 400",
+      "response_text": null
+    },
+    {
+      "test_name": "Random text",
+      "input": "hello world",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.17084288597106934,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Invalid coordinates",
+      "input": "999,999",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.22095394134521484,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Partial coordinates",
+      "input": "40.7128",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.2136671543121338,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Very long text",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.1940150260925293,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Special characters",
+      "input": "!@#$%^&*()",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.20961833000183105,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "HTML tags",
+      "input": "<script>alert('test')</script>",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.19811272621154785,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "HTTP Google Maps URL",
+      "input": "http://maps.google.com/maps?q=40.7128,-74.0060",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.30031394958496094,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Google Maps with zoom",
+      "input": "https://www.google.com/maps/@40.7128,-74.0060,15z/data=!4m2!3m1!1s0x0:0x0",
+      "expected": "coordinates_found",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.27666211128234863,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "Invalid URL",
+      "input": "https://invalid-url-test.com",
+      "expected": "error",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.18389296531677246,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "/start command",
+      "input": "/start",
+      "expected": "command_response",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.19830894470214844,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "/help command",
+      "input": "/help",
+      "expected": "command_response",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.18508577346801758,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "/menu command",
+      "input": "/menu",
+      "expected": "command_response",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.18763208389282227,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "/language command",
+      "input": "/language",
+      "expected": "command_response",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.244581937789917,
+      "error": null,
+      "response_text": null
+    },
+    {
+      "test_name": "/myid command",
+      "input": "/myid",
+      "expected": "command_response",
+      "actual_result": "unknown",
+      "passed": false,
+      "response_time": 0.2253260612487793,
+      "error": null,
+      "response_text": null
+    }
+  ]
+}

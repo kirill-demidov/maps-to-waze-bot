@@ -10,4 +10,4 @@ COPY *.py ./
 # Cloud Run will set PORT environment variable
 EXPOSE 8080
 
-CMD ["python", "maps_to_waze_bot.py"]
+CMD ["python", "-u", "maps_to_waze_bot.py"]

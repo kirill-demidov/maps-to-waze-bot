@@ -79,9 +79,50 @@ def expand_short_url(url):
     try:
         # Check if it's a short Google Maps URL
         if 'maps.app.goo.gl' in url or 'goo.gl' in url:
-            # Follow redirects to get the final URL
-            response = requests.head(url, allow_redirects=True, timeout=10)
-            return response.url
+            # Add headers to mimic a real browser
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none'
+            }
+            
+            # Try multiple methods to expand the URL
+            try:
+                # Method 1: HEAD request with redirects
+                response = requests.head(url, allow_redirects=True, timeout=5, headers=headers)
+                if response.url != url:
+                    logger.info(f"Successfully expanded URL via HEAD: {response.url}")
+                    return response.url
+            except Exception as e:
+                logger.warning(f"HEAD request failed: {e}")
+            
+            try:
+                # Method 2: GET request with redirects
+                response = requests.get(url, allow_redirects=True, timeout=5, headers=headers)
+                if response.url != url:
+                    logger.info(f"Successfully expanded URL via GET: {response.url}")
+                    return response.url
+            except Exception as e:
+                logger.warning(f"GET request failed: {e}")
+            
+            # If both methods fail, try to construct a fallback URL
+            if 'maps.app.goo.gl' in url:
+                place_id = url.split('/')[-1].split('?')[0]
+                logger.info(f"Using fallback URL for place ID: {place_id}")
+                # Try different URL formats
+                fallback_urls = [
+                    f"https://www.google.com/maps/place/{place_id}",
+                    f"https://maps.google.com/maps?q=place_id:{place_id}",
+                    f"https://www.google.com/maps/search/{place_id}"
+                ]
+                return fallback_urls[0]  # Return first fallback
+            
         return url
     except Exception as e:
         logger.error(f"Error expanding short URL: {e}")
@@ -102,8 +143,8 @@ def extract_coordinates_from_google_maps_api(url):
             logger.warning("Google Maps API key not found")
             return None, None
         
-        # Initialize Google Maps client
-        gmaps = googlemaps.Client(key=api_key)
+        # Initialize Google Maps client with shorter timeout
+        gmaps = googlemaps.Client(key=api_key, timeout=5)
         
         # First try to extract place ID from URL
         place_id = extract_place_id_from_url(url)
@@ -167,6 +208,31 @@ def extract_coordinates_from_google_maps_api(url):
             logger.warning(f"Text search method failed: {e}")
         
         logger.warning("API method failed to find coordinates")
+        
+        # Final fallback: try to extract coordinates from URL patterns
+        try:
+            # Look for coordinates in the URL itself
+            coord_patterns = [
+                r'@(-?\d+\.?\d*),(-?\d+\.?\d*)',
+                r'!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)',
+                r'!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)',
+                r'!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)!5d(-?\d+\.?\d*)',
+                r'search/(-?\d+\.?\d*),(-?\d+\.?\d*)'
+            ]
+            
+            for pattern in coord_patterns:
+                match = re.search(pattern, url)
+                if match:
+                    if len(match.groups()) >= 2:
+                        lat = float(match.group(1))
+                        lng = float(match.group(2))
+                        logger.info(f"Found coordinates via URL pattern: {lat}, {lng}")
+                        return lat, lng
+            
+            logger.warning("No coordinates found in URL patterns")
+        except Exception as e:
+            logger.warning(f"URL pattern extraction failed: {e}")
+        
         return None, None
         
     except Exception as e:
@@ -232,29 +298,7 @@ def extract_coordinates_from_input(text):
     """Extract coordinates from text (Google Maps URL or coordinates)"""
     logger.info(f"Extracting coordinates from input: {text}")
     
-    # First try to extract from URL using standard methods
-    coords = extract_coordinates_from_google_maps(text)
-    if coords[0] is not None:
-        logger.info(f"Found coordinates via standard method: {coords}")
-        return coords
-    
-    # Try to extract using Google Maps API (for place URLs)
-    if 'maps.google.com' in text or 'maps.app.goo.gl' in text or 'goo.gl' in text:
-        logger.info("Trying Google Maps API method...")
-        coords = extract_coordinates_from_google_maps_api(text)
-        if coords[0] is not None:
-            logger.info(f"Found coordinates via API method: {coords}")
-            return coords
-        else:
-            logger.warning("Google Maps API method failed")
-    
-    # Try to extract DMS coordinates
-    coords = parse_dms_coordinates(text)
-    if coords[0] is not None:
-        logger.info(f"Found coordinates via DMS method: {coords}")
-        return coords
-    
-    # Try to extract direct coordinates (lat,lng format)
+    # First try direct coordinate parsing (fastest)
     coord_pattern = r'(-?\d+\.?\d*),\s*(-?\d+\.?\d*)'
     match = re.search(coord_pattern, text)
     if match:
@@ -266,6 +310,43 @@ def extract_coordinates_from_input(text):
                 return lat, lng
         except ValueError:
             pass
+    
+    # For Google Maps short URLs, try to expand and process them first
+    if 'maps.app.goo.gl' in text:
+        logger.info("Processing short Google Maps URL")
+        # Try to expand and extract coordinates
+        try:
+            expanded_url = expand_short_url(text)
+            logger.info(f"Expanded URL: {expanded_url}")
+            
+            # Try to extract coordinates from expanded URL
+            coords = extract_coordinates_from_google_maps(expanded_url)
+            if coords[0] is not None:
+                logger.info(f"Found coordinates from expanded URL: {coords}")
+                return coords
+            
+            # If no coordinates found, try Google Maps API
+            if GOOGLE_MAPS_API_AVAILABLE:
+                coords = extract_coordinates_from_google_maps_api(text)
+                if coords[0] is not None:
+                    logger.info(f"Found coordinates via API: {coords}")
+                    return coords
+            
+            logger.warning("Could not extract coordinates from short URL")
+        except Exception as e:
+            logger.error(f"Error processing short URL: {e}")
+    
+    # Then try to extract from URL using standard methods (fast and reliable)
+    coords = extract_coordinates_from_google_maps(text)
+    if coords[0] is not None:
+        logger.info(f"Found coordinates via standard method: {coords}")
+        return coords
+    
+    # Try to extract DMS coordinates
+    coords = parse_dms_coordinates(text)
+    if coords[0] is not None:
+        logger.info(f"Found coordinates via DMS method: {coords}")
+        return coords
     
     logger.warning("No coordinates found in input")
     return None, None
@@ -565,7 +646,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Get the bot's URL from environment or construct it
-    bot_url = os.getenv('BOT_URL', 'https://gmaps-to-waze-bot-16542874441.us-central1.run.app')
+    bot_url = os.getenv('BOT_URL', 'https://gmaps-waze-bot-16542874441.us-central1.run.app')
     admin_url = f"{bot_url}/admin?user_id={user_id}"
     
     admin_message = (
@@ -617,7 +698,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             analytics.track_link_processing(user_id, message_text, False, error="No coordinates found")
         
         # Check if it's a Google Maps URL that couldn't be processed
-        if 'maps.google.com' in message_text or 'maps.app.goo.gl' in message_text or 'goo.gl' in message_text:
+        if 'maps.google.com' in message_text or 'goo.gl' in message_text or 'maps.app.goo.gl' in message_text:
             error_message = get_text('error_google_maps', lang)
             await update.message.reply_text(error_message)
         else:
@@ -663,6 +744,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
         except Exception as e:
             self.send_error(500, f"Internal Server Error: {str(e)}")
+    
+
     
     def handle_admin_access(self, query):
         """Handle admin panel access with user ID verification"""
@@ -1058,6 +1141,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             
         except Exception as e:
             self.send_error(500, f"Error getting user stats: {str(e)}")
+    
+
     
     def log_message(self, format, *args):
         # Suppress HTTP server logs
