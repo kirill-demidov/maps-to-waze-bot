@@ -401,6 +401,12 @@ def extract_coordinates_from_google_maps(url):
                     lat, lng = match.groups()
                     logger.info(f"Found coordinates via consent continue: {lat}, {lng}")
                     return float(lat), float(lng)
+                # Ищем паттерн !3d и !4d (для place ссылок)
+                match = re.search(r'!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)', continue_data)
+                if match:
+                    lat, lng = match.groups()
+                    logger.info(f"Found coordinates via consent continue !3d!4d: {lat}, {lng}")
+                    return float(lat), float(lng)
             return None, None
         # Pattern for @lat,lng format
         coords_pattern = r'@(-?\d+\.?\d*),(-?\d+\.?\d*)'
@@ -473,12 +479,24 @@ def extract_coordinates_from_google_maps(url):
                     logger.info(f"Found coordinates via place path: {lat}, {lng}")
                     return float(lat), float(lng)
         
-        # Pattern for search parameter
+        # Pattern for search parameter with coordinates
         if 'search' in parsed_url.path:
             search_pattern = r'search/([^/]+)'
             search_match = re.search(search_pattern, expanded_url)
             if search_match:
                 search_data = search_match.group(1)
+                # Look for coordinates in the search data
+                coords_match = re.search(r'(-?\d+\.?\d*),\+(-?\d+\.?\d*)', search_data)
+                if coords_match:
+                    lat, lng = coords_match.groups()
+                    logger.info(f"Found coordinates via search path with +: {lat}, {lng}")
+                    return float(lat), float(lng)
+                # Also try without +
+                coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', search_data)
+                if coords_match:
+                    lat, lng = coords_match.groups()
+                    logger.info(f"Found coordinates via search path: {lat}, {lng}")
+                    return float(lat), float(lng)
                 coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', search_data)
                 if coords_match:
                     lat, lng = coords_match.groups()
@@ -557,15 +575,33 @@ def extract_coordinates_from_google_maps(url):
                 decoded_data = urllib.parse.unquote(search_data)
                 logger.info(f"Decoded search data: {decoded_data}")
                 
-                # Try to find coordinates in decoded data
-                coords_match = re.search(r'(-?\d+\.?\d*),(-?\d+\.?\d*)', decoded_data)
-                if coords_match:
-                    lat, lng = coords_match.groups()
-                    # Validate coordinate ranges
-                    lat, lng = float(lat), float(lng)
-                    if -90 <= lat <= 90 and -180 <= lng <= 180:
-                        logger.info(f"Found coordinates via search path pattern: {lat}, {lng}")
-                        return lat, lng
+                # Try to find coordinates in decoded data with different patterns
+                coord_patterns = [
+                    r'(-?\d+\.?\d*),\+(-?\d+\.?\d*)',  # With plus sign
+                    r'(-?\d+\.?\d*),(-?\d+\.?\d*)',   # Standard format
+                    r'(-?\d+\.?\d*),%2B(-?\d+\.?\d*)', # URL encoded plus
+                ]
+                
+                for pattern in coord_patterns:
+                    coords_match = re.search(pattern, decoded_data)
+                    if coords_match:
+                        lat, lng = coords_match.groups()
+                        # Validate coordinate ranges
+                        lat, lng = float(lat), float(lng)
+                        if -90 <= lat <= 90 and -180 <= lng <= 180:
+                            logger.info(f"Found coordinates via search path pattern: {lat}, {lng}")
+                            return lat, lng
+                
+                # Also try in the original search_data (before decoding)
+                for pattern in coord_patterns:
+                    coords_match = re.search(pattern, search_data)
+                    if coords_match:
+                        lat, lng = coords_match.groups()
+                        # Validate coordinate ranges
+                        lat, lng = float(lat), float(lng)
+                        if -90 <= lat <= 90 and -180 <= lng <= 180:
+                            logger.info(f"Found coordinates via original search data: {lat}, {lng}")
+                            return lat, lng
         else:
             # For consent URLs, skip search path extraction and go directly to continue parameter
             logger.info("Skipping search path extraction for consent URL")
@@ -773,7 +809,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Get the bot's URL from environment or construct it
-    bot_url = os.getenv('BOT_URL', 'https://gmaps-waze-bot-16542874441.us-central1.run.app')
+    bot_url = os.getenv('BOT_URL', 'http://159.223.0.234:8080')
     admin_url = f"{bot_url}/admin?user_id={user_id}"
     
     admin_message = (
@@ -808,6 +844,8 @@ async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming messages and convert Google Maps links or coordinates to Waze"""
+    global processed_messages
+    
     user_id = update.effective_user.id
     lang = get_user_language(user_id)
     message_text = update.message.text
@@ -816,20 +854,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = update.message.message_id
     chat_id = update.effective_chat.id
     
-    # Create unique message identifier
-    message_key = f"{chat_id}_{message_id}"
+    # Create unique message identifier with timestamp
+    import time
+    current_time = int(time.time())
+    message_key = f"{chat_id}_{message_id}_{current_time}"
     
-    # Check if message was already processed
-    if message_key in processed_messages:
-        print(f"⚠️ DUPLICATE message detected: {message_key}")
-        return
+    # Check if message was already processed (within last 60 seconds)
+    for old_key in list(processed_messages):
+        if old_key.startswith(f"{chat_id}_{message_id}_"):
+            old_time = int(old_key.split('_')[-1])
+            if current_time - old_time < 60:  # Within 60 seconds
+                print(f"⚠️ DUPLICATE message detected: {message_key}")
+                return
     
     # Add to processed messages
     processed_messages.add(message_key)
     
-    # Clean up old messages (keep only last 1000)
-    if len(processed_messages) > 1000:
-        processed_messages.clear()
+    # Clean up old messages (keep only last 500 and remove old ones)
+    if len(processed_messages) > 500:
+        # Remove messages older than 5 minutes
+        current_time = int(time.time())
+        processed_messages = {key for key in processed_messages 
+                           if current_time - int(key.split('_')[-1]) < 300}
     
     print(f"🔍 MESSAGE received from user {user_id} (msg_id: {message_id}): {message_text[:50]}...")
     
@@ -860,6 +906,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Extract coordinates from input (URL or direct coordinates)
     lat, lng = extract_coordinates_from_input(message_text)
+    
+    print(f"🔍 EXTRACTED coordinates: lat={lat}, lng={lng}")
     
     if lat is None or lng is None:
         # Track failed processing
@@ -940,6 +988,41 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
         except Exception as e:
             self.send_error(500, f"Internal Server Error: {str(e)}")
+    
+    def do_POST(self):
+        """Handle webhook POST requests from Telegram"""
+        try:
+            parsed_path = urllib.parse.urlparse(self.path)
+            path = parsed_path.path
+            
+            if path == "/webhook":
+                # Handle Telegram webhook
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                
+                # Process the update
+                import json
+                update_data = json.loads(post_data.decode('utf-8'))
+                
+                # Create Update object and process it
+                from telegram import Update
+                update = Update.de_json(update_data, application.bot)
+                
+                # Process the update asynchronously
+                import asyncio
+                asyncio.run(application.process_update(update))
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True}).encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+                
+        except Exception as e:
+            print(f"❌ Webhook error: {e}")
+            self.send_error(500, f"Webhook Error: {str(e)}")
     
 
     
@@ -1439,12 +1522,6 @@ def main():
     # Create the Application with better error handling and unique identifier
     application = Application.builder().token(token).build()
     
-    # Set a unique identifier to avoid conflicts
-    try:
-        application.bot.set_my_name("Maps to Waze Bot v4")
-    except Exception as e:
-        logger.warning(f"Could not set bot name: {e}")
-    
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -1458,7 +1535,7 @@ def main():
     # Add error handler
     application.add_error_handler(error_handler)
     
-    # Run the bot with polling and better configuration to avoid conflicts
+    # Use polling for both local and Cloud Run (simpler and more reliable)
     print("🤖 Bot started with polling!")
     
     # Add a small delay to reduce conflicts between instances
@@ -1466,18 +1543,35 @@ def main():
     import random
     time.sleep(random.uniform(0, 2))
     
-    application.run_polling(
-        allowed_updates=Update.ALL_TYPES,
-        drop_pending_updates=True,
-        close_loop=False,
-        bootstrap_retries=3,
-        read_timeout=30,
-        write_timeout=30,
-        connect_timeout=30,
-        pool_timeout=30,
-        poll_interval=7.0,  # Increased interval to reduce conflicts
-        timeout=30
-    )
+    # Set bot name (skip for now to avoid conflicts)
+    print("🤖 Bot name will be set during polling")
+    
+    # Clear any existing webhook to avoid conflicts
+    print("🔄 Webhook will be cleared during polling")
+    
+    # Start polling with simple approach
+    print("🚀 Starting bot polling...")
+    
+    # Use polling for stable operation
+    print("🔄 Starting bot with polling...")
+    
+    try:
+        application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+            close_loop=False,
+            bootstrap_retries=3,
+            read_timeout=30,
+            write_timeout=30,
+            connect_timeout=30,
+            pool_timeout=30,
+            poll_interval=30.0,
+            timeout=30
+        )
+    except Exception as e:
+        print(f"❌ Polling failed: {e}")
+        print("🔄 Starting HTTP server only...")
+        run_http_server()
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle button callbacks"""
