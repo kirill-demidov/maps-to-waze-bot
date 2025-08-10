@@ -9,8 +9,12 @@ A Telegram bot that converts Google Maps links and coordinates to Waze navigatio
 - ✅ Parse decimal coordinates (40.7128, -74.0060)
 - ✅ Parse DMS coordinates (31°44'49.8"N 35°01'46.6"E)
 - ✅ Automatic URL expansion for short links
-- ✅ Detailed logging
-- ✅ Cloud deployment ready
+- ✅ Multi-language support (English, Russian)
+- ✅ Interactive buttons and menus
+- ✅ User language preferences
+- ✅ Admin commands and analytics
+- ✅ Docker deployment ready
+- ✅ Fast polling (1 second intervals)
 
 ## Supported Input Formats
 
@@ -28,76 +32,148 @@ A Telegram bot that converts Google Maps links and coordinates to Waze navigatio
 
 ### Prerequisites
 - Python 3.9+
+- Docker (optional, for containerized development)
 - Telegram bot token from [@BotFather](https://t.me/botfather)
 
 ### Installation
+
+#### Option 1: Direct Python Setup
 1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd maps-to-waze-bot
 ```
 
-2. Install dependencies:
+2. Create virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set environment variables:
+4. Set environment variables:
 ```bash
-export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+cp env.example env.local
+# Edit env.local with your bot token
 ```
 
-4. Run the bot:
+5. Run the bot:
 ```bash
 python main.py
 ```
 
-## Cloud Deployment (Google Cloud Run)
-
-### Build and Deploy
+#### Option 2: Docker Development
+1. Clone and setup as above
+2. Run with Docker:
 ```bash
-# Build Docker image
-docker build --platform linux/amd64 -t gcr.io/YOUR_PROJECT/maps-to-waze-bot .
+./run_local_docker.sh
+```
 
-# Push to Google Container Registry
-docker push gcr.io/YOUR_PROJECT/maps-to-waze-bot
+3. Stop Docker container:
+```bash
+./stop_local_docker.sh
+```
 
-# Deploy to Cloud Run
-gcloud run deploy maps-to-waze-bot \
-  --image gcr.io/YOUR_PROJECT/maps-to-waze-bot \
-  --platform managed \
-  --region us-central1 \
-  --set-env-vars TELEGRAM_BOT_TOKEN="your_bot_token_here" \
-  --allow-unauthenticated
+## Production Deployment
+
+### DigitalOcean Deployment
+```bash
+# Deploy to DigitalOcean server
+./deploy.sh
+```
+
+### Manual Docker Deployment
+```bash
+# Build and run production container
+docker-compose up -d --build
+```
+
+## Environment Variables
+
+Create `.env` file or set environment variables:
+
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+ADMIN_USER_IDS=your_user_id_here
+PORT=8081
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here  # Optional
+ENVIRONMENT=production  # For production deployment
 ```
 
 ## Bot Commands
 
-- `/start` - Show welcome message and usage instructions
+- `/start` - Show welcome message and main menu
 - `/help` - Display help information
+- `/menu` - Show main menu
+- `/language` - Change bot language
+- `/admin` - Admin panel (admin users only)
+- `/myid` - Get your user ID
+
+## Interactive Features
+
+- **Language Selection**: Choose between English and Russian
+- **Menu Navigation**: Interactive buttons for easy navigation
+- **User Preferences**: Bot remembers your language choice
+- **Admin Panel**: Analytics and management tools
 
 ## Architecture
 
-- **bot_simple.py** - Main bot logic with coordinate parsing
+- **maps_to_waze_bot.py** - Main bot logic with all handlers
 - **main.py** - Entry point
+- **translations.py** - Multi-language support
 - **Dockerfile** - Container configuration
+- **docker-compose.yml** - Production deployment
+- **docker-compose.local.yml** - Local development
 - **requirements.txt** - Python dependencies
+
+## File Structure
+
+```
+maps-to-waze-bot/
+├── maps_to_waze_bot.py      # Main bot logic
+├── main.py                  # Entry point
+├── translations.py          # Language translations
+├── requirements.txt         # Dependencies
+├── Dockerfile              # Container config
+├── docker-compose.yml      # Production deployment
+├── docker-compose.local.yml # Local development
+├── deploy.sh               # Deployment script
+├── run_local_docker.sh     # Local Docker runner
+├── stop_local_docker.sh    # Docker cleanup
+├── env.example             # Environment template
+├── env.local               # Local environment (gitignored)
+├── env-cloud.yaml          # Cloud environment (gitignored)
+├── user_preferences.json   # User settings
+└── waze_bot_icon.png       # Bot icon
+```
+
+## Performance Features
+
+- **Fast Response**: 1-second polling intervals
+- **Conflict Prevention**: Duplicate callback handling
+- **Error Recovery**: Graceful error handling
+- **Memory Efficient**: Cleanup of old callbacks
+- **Production Ready**: HTTP server disabled in production
 
 ## Logging
 
 The bot provides detailed logging including:
-- User interactions
+- User interactions and button clicks
 - URL expansion processes
-- Coordinate extraction
-- Conversion results
-- Error handling
+- Coordinate extraction and conversion
+- Error handling and recovery
+- Performance metrics
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Test thoroughly (use Docker for consistency)
 5. Submit a pull request
 
 ## License
