@@ -1452,7 +1452,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 def run_http_server():
     """Run HTTP server for health checks and analytics"""
-    port = int(os.getenv('PORT', 8080))
+    port = int(os.getenv('PORT', 8081))
     server = HTTPServer(('', port), HealthCheckHandler)
     print(f"🌐 HTTP server started on port {port}")
     
