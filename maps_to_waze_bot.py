@@ -1561,12 +1561,12 @@ def main():
             drop_pending_updates=True,
             close_loop=False,
             bootstrap_retries=3,
-            read_timeout=30,
-            write_timeout=30,
-            connect_timeout=30,
-            pool_timeout=30,
-            poll_interval=30.0,
-            timeout=30
+            read_timeout=10,
+            write_timeout=10,
+            connect_timeout=10,
+            pool_timeout=10,
+            poll_interval=1.0,
+            timeout=10
         )
     except Exception as e:
         print(f"❌ Polling failed: {e}")
@@ -1576,60 +1576,115 @@ def main():
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle button callbacks"""
     query = update.callback_query
-    await query.answer()
-    
     user_id = query.from_user.id
     lang = get_user_language(user_id)
+    
+    # Create unique callback identifier to prevent duplicates
+    callback_id = f"{user_id}_{query.id}_{query.data}"
+    
+    print(f"🔘 BUTTON callback received: {query.data} from user {user_id} (id: {query.id})")
+    
+    # Check if this callback was already processed
+    if hasattr(context, 'processed_callbacks'):
+        if callback_id in context.processed_callbacks:
+            print(f"⚠️ DUPLICATE callback detected: {callback_id}")
+            return
+    else:
+        context.processed_callbacks = set()
+    
+    # Add to processed callbacks
+    context.processed_callbacks.add(callback_id)
+    
+    # Clean up old callbacks (keep only last 50)
+    if len(context.processed_callbacks) > 50:
+        context.processed_callbacks = set(list(context.processed_callbacks)[-25:])
+    
+    # Try to answer callback query, but don't fail if it's too old
+    try:
+        await query.answer()
+    except Exception as e:
+        print(f"⚠️ Could not answer callback query: {e}")
+        # If callback is too old or invalid, ignore it completely
+        if "Query is too old" in str(e) or "400 Bad Request" in str(e):
+            print(f"⚠️ Ignoring old/invalid callback: {callback_id}")
+            return
     
     # Track analytics
     if ANALYTICS_AVAILABLE and analytics:
         analytics.track_user_interaction(user_id, f"button_{query.data}", True)
     
-    if query.data == 'menu':
-        menu_text = get_text('menu', lang)
-        await query.edit_message_text(
-            menu_text,
-            reply_markup=create_menu_keyboard(lang)
-        )
-    
-    elif query.data == 'help':
-        help_text = get_text('help', lang)
-        await query.edit_message_text(
-            help_text,
-            reply_markup=create_menu_keyboard(lang)
-        )
-    
-    elif query.data == 'language':
-        language_text = get_text('language_menu', lang)
-        await query.edit_message_text(
-            language_text,
-            reply_markup=create_language_keyboard()
-        )
-    
-    elif query.data.startswith('lang_'):
-        selected_lang = query.data.replace('lang_', '')
-        if is_valid_language(selected_lang):
-            save_user_language(user_id, selected_lang)
-            
-            # Track language change
-            if ANALYTICS_AVAILABLE and analytics:
-                analytics.track_language_change(user_id, selected_lang)
-            
-            language_name = get_language_name(selected_lang)
-            success_message = get_text('language_changed', selected_lang, language=language_name)
-            await query.edit_message_text(
-                success_message,
-                reply_markup=create_menu_keyboard(selected_lang)
+    # Process the callback based on data
+    try:
+        if query.data == 'menu':
+            menu_text = get_text('menu', lang)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=menu_text,
+                reply_markup=create_menu_keyboard(lang)
             )
+            print(f"✅ Menu sent for user {user_id}")
+        
+        elif query.data == 'help':
+            help_text = get_text('help', lang)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=help_text,
+                reply_markup=create_menu_keyboard(lang)
+            )
+            print(f"✅ Help sent for user {user_id}")
+        
+        elif query.data == 'language':
+            language_text = get_text('language_menu', lang)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=language_text,
+                reply_markup=create_language_keyboard()
+            )
+            print(f"✅ Language menu sent for user {user_id}")
+        
+        elif query.data.startswith('lang_'):
+            selected_lang = query.data.replace('lang_', '')
+            if is_valid_language(selected_lang):
+                save_user_language(user_id, selected_lang)
+                
+                # Track language change
+                if ANALYTICS_AVAILABLE and analytics:
+                    analytics.track_language_change(user_id, selected_lang)
+                
+                language_name = get_language_name(selected_lang)
+                success_message = get_text('language_changed', selected_lang, language=language_name)
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=success_message,
+                    reply_markup=create_menu_keyboard(selected_lang)
+                )
+                print(f"✅ Language changed to {selected_lang} for user {user_id}")
+    
+    except Exception as e:
+        print(f"❌ Error processing button callback: {e}")
+        print(f"❌ Callback data: {query.data}")
+        print(f"❌ User ID: {user_id}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors in the bot"""
     print(f"❌ Error: {context.error}")
-    if update and hasattr(update, 'message'):
+    print(f"❌ Error type: {type(context.error)}")
+    print(f"❌ Update: {update}")
+    
+    # Handle different types of updates
+    if update and hasattr(update, 'message') and update.message:
         user_id = update.message.from_user.id
         lang = get_user_language(user_id)
         error_message = get_text('error_processing', lang)
         await update.message.reply_text(error_message)
+    elif update and hasattr(update, 'callback_query') and update.callback_query:
+        user_id = update.callback_query.from_user.id
+        lang = get_user_language(user_id)
+        error_message = get_text('error_processing', lang)
+        try:
+            await update.callback_query.message.reply_text(error_message)
+        except Exception as e:
+            print(f"❌ Could not send error message to callback query: {e}")
 
 if __name__ == '__main__':
     main()
