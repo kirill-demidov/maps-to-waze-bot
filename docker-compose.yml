@@ -11,6 +11,7 @@ services:
       - ADMIN_USER_IDS=${ADMIN_USER_IDS}
       - PORT=8080
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+      - ENVIRONMENT=production
     ports:
       - "127.0.0.1:8081:8080"
     volumes:

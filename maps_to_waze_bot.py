@@ -1515,9 +1515,10 @@ def main():
         run_http_server()
         return
     
-    # Start HTTP server in a separate thread for Cloud Run health checks
-    http_thread = threading.Thread(target=run_http_server, daemon=True)
-    http_thread.start()
+    # Start HTTP server in a separate thread for Cloud Run health checks (only if not in production)
+    if os.getenv('ENVIRONMENT') != 'production':
+        http_thread = threading.Thread(target=run_http_server, daemon=True)
+        http_thread.start()
     
     # Create the Application with better error handling and unique identifier
     application = Application.builder().token(token).build()
