@@ -1,0 +1,12 @@
+services:
+  bot:
+    build: .
+    ports:
+      - "8082:8080"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+      - PORT=${PORT:-8080}
+    volumes:
+      - ./user_preferences.json:/app/user_preferences.json
+    restart: unless-stopped
