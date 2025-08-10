@@ -1,34 +1,22 @@
+version: '2.4'
+
 services:
   maps-to-waze-bot:
     build: .
     container_name: maps-to-waze-bot
     restart: unless-stopped
-    user: "1000:1000"  # Run as non-root user
+    user: "1000:1000"
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - ADMIN_USER_IDS=${ADMIN_USER_IDS}
       - PORT=8080
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
     ports:
-      - "127.0.0.1:8080:8080"  # Bind only to localhost
+      - "127.0.0.1:8080:8080"
     volumes:
-      - ./data:/app/data:rw  # Persistent data directory
+      - ./data:/app/data:rw
     networks:
       - telegram-bots-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
 
 networks:
   telegram-bots-network:
