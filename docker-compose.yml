@@ -16,6 +16,7 @@ services:
       - "127.0.0.1:8081:8080"
     volumes:
       - ./data:/app/data:rw
+      - ./user_preferences.json:/app/user_preferences.json:rw
     networks:
       - telegram-bots-network
 
