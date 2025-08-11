@@ -771,30 +771,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /help is issued."""
     user_id = update.effective_user.id
-    lang = get_user_language(user_id)
+    current_lang = get_user_language(user_id)
     
-    help_text = get_text('help', lang)
+    help_text = get_text('help', current_lang)
     await update.message.reply_text(
         help_text,
-        reply_markup=create_menu_keyboard(lang)
+        reply_markup=create_menu_keyboard(current_lang)
     )
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send menu when the command /menu is issued."""
     user_id = update.effective_user.id
-    lang = get_user_language(user_id)
+    current_lang = get_user_language(user_id)
     
-    menu_text = get_text('menu', lang)
+    menu_text = get_text('menu', current_lang)
     await update.message.reply_text(
         menu_text,
-        reply_markup=create_menu_keyboard(lang)
+        reply_markup=create_menu_keyboard(current_lang)
     )
 
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send language selection when the command /language is issued."""
-    lang = get_user_language(update.effective_user.id)
+    user_id = update.effective_user.id
+    current_lang = get_user_language(user_id)
     
-    language_text = get_text('language_menu', lang)
+    language_text = get_text('language_menu', current_lang)
     await update.message.reply_text(
         language_text,
         reply_markup=create_language_keyboard()
@@ -1617,25 +1618,28 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Process the callback based on data
     try:
         if query.data == 'menu':
-            menu_text = get_text('menu', lang)
+            current_lang = get_user_language(user_id)
+            menu_text = get_text('menu', current_lang)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=menu_text,
-                reply_markup=create_menu_keyboard(lang)
+                reply_markup=create_menu_keyboard(current_lang)
             )
             print(f"✅ Menu sent for user {user_id}")
         
         elif query.data == 'help':
-            help_text = get_text('help', lang)
+            current_lang = get_user_language(user_id)
+            help_text = get_text('help', current_lang)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=help_text,
-                reply_markup=create_menu_keyboard(lang)
+                reply_markup=create_menu_keyboard(current_lang)
             )
             print(f"✅ Help sent for user {user_id}")
         
         elif query.data == 'language':
-            language_text = get_text('language_menu', lang)
+            current_lang = get_user_language(user_id)
+            language_text = get_text('language_menu', current_lang)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=language_text,
