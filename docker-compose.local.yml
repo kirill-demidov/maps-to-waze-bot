@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "8082:8080"
+    env_file:
+      - env.local
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - ADMIN_USER_IDS=${ADMIN_USER_IDS}
